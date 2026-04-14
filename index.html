@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docker Volumes &amp; Storage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/black.min.css">
+<style>
+  :root {
+    --amber:  #f5a623; --green:  #4ecb8d; --purple: #a78bfa; --blue:   #60a5fa;
+    --red:    #f87171; --bg:     #0a0a0f; --bg2:    #10101a; --bg3:    #181824;
+    --border: #2a2a3a; --text:   #e8e8f0; --muted:  #8888a8;
+  }
+  .reveal-viewport { background: var(--bg); }
+  .reveal .slides section { background: transparent; }
+  .reveal { font-family: 'DM Sans', sans-serif; color: var(--text); }
+  .reveal h1, .reveal h2, .reveal h3 { font-family: 'Playfair Display', serif; font-weight: 700; }
+  .reveal h1 { font-size: 1.6em; color: var(--amber); line-height: 1.1; }
+  .reveal h2 { font-size: 1.1em; color: var(--amber); margin-bottom: .2em; }
+  .reveal h3 { font-size: .78em; color: var(--green); margin-bottom: .15em; }
+  .reveal p  { font-size: .56em; line-height: 1.45; color: var(--text); }
+  .reveal li { font-size: .54em; line-height: 1.45; margin-bottom: .1em; }
+  .reveal code { font-family: 'JetBrains Mono', monospace; font-size: .72em; }
+  .reveal pre  { box-shadow: none; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: .3em .5em; margin: .25em 0; }
+  .reveal pre code { font-size: .52em; line-height: 1.35; background: transparent; color: #cdd6f4; }
+  .slide-hdr { display: flex; align-items: center; gap: .4em; border-bottom: 1px solid var(--border); padding-bottom: .2em; margin-bottom: .3em; }
+  .slide-hdr .tag { font-family: 'JetBrains Mono', monospace; font-size: .42em; font-weight: 500; color: var(--bg); background: var(--amber); padding: .1em .4em; border-radius: 3px; letter-spacing: .04em; }
+  .slide-hdr h2 { margin: 0; font-size: .95em; }
+  .cols   { display: grid; gap: .5em; }
+  .cols-2 { grid-template-columns: 1fr 1fr; }
+  .cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .cols-6040 { grid-template-columns: 6fr 4fr; }
+  .cols-4060 { grid-template-columns: 4fr 6fr; }
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: .35em .6em; }
+  .card.amber { border-left: 3px solid var(--amber); }
+  .card.green { border-left: 3px solid var(--green); }
+  .card.purple{ border-left: 3px solid var(--purple); }
+  .card.blue  { border-left: 3px solid var(--blue); }
+  .card.red   { border-left: 3px solid var(--red); }
+  .card h3 { font-size: .64em; margin: 0 0 .12em; }
+  .card p  { font-size: .52em; margin: 0; color: #b8b8d0; }
+  .card ul { margin: 0; padding-left: 1em; }
+  .card li { font-size: .52em; color: #b8b8d0; margin-bottom: .02em; }
+  .reveal table { width: 100%; border-collapse: collapse; font-size: .5em; }
+  .reveal table th { background: var(--bg3); color: var(--amber); font-weight: 600; padding: .2em .4em; border: 1px solid var(--border); text-align: left; }
+  .reveal table td { padding: .18em .4em; border: 1px solid var(--border); color: #ccc; }
+  .reveal table tr:nth-child(even) td { background: #0e0e18; }
+  .a  { color: var(--amber); font-weight: 600; }
+  .g  { color: var(--green); font-weight: 600; }
+  .p  { color: var(--purple); font-weight: 600; }
+  .b  { color: var(--blue); font-weight: 600; }
+  .r  { color: var(--red); font-weight: 600; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  svg.diagram { display: block; margin: 0 auto; overflow: visible; }
+  .pill { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: .44em; padding: .08em .4em; border-radius: 99px; border: 1px solid; margin: 0 .08em; }
+  .pill.amber { color: var(--amber); border-color: var(--amber); }
+  .pill.green { color: var(--green); border-color: var(--green); }
+  .pill.purple{ color: var(--purple); border-color: var(--purple); }
+  .pill.blue  { color: var(--blue); border-color: var(--blue); }
+  .reveal .slide-footer { display: none; }
+  .title-slide h1 { font-size: 1.8em; }
+  .title-slide .subtitle { font-size: .7em; color: var(--green); font-family: 'DM Sans', sans-serif; font-weight: 300; letter-spacing: .04em; margin: .3em 0 .6em; }
+  .title-slide .meta { font-size: .48em; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+  .ss-row { display: flex; gap: .25em; align-items: center; margin: .1em 0; font-size: .55em; font-family: 'JetBrains Mono', monospace; }
+  .ss-node { padding: .2em .55em; border-radius: 5px; font-size: .9em; background: var(--bg3); border: 1px solid var(--border); color: var(--text); }
+  .ss-node.active { background: #1a2a1a; border-color: var(--green); color: var(--green); }
+  .ss-node.done   { background: #1a1a2a; border-color: var(--purple); color: var(--purple); }
+  .ss-arrow { color: var(--amber); }
+  .ss-label { font-size: .8em; color: var(--muted); margin-left: .3em; }
+  .reveal ul, .reveal ol { margin: .15em 0 .15em 1em; }
+  .reveal .slides > section { display: flex !important; flex-direction: column !important; overflow-y: auto !important; align-items: stretch !important; justify-content: flex-start !important; }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+
+<!-- ═══════════════════════════════ SLIDE 01 — TITLE ═══════════════════════════════ -->
+<section class="title-slide" data-background-color="#0a0a0f">
+  <div style="text-align:left; max-width:820px; margin:0 auto; padding: 1em 0;">
+    <div style="font-family:'JetBrains Mono',monospace; font-size:.5em; color:var(--muted); margin-bottom:.4em; letter-spacing:.1em;">
+      TECHNICAL PRESENTATION
+    </div>
+    <h1>Docker Volumes<br>&amp; Storage</h1>
+    <div class="subtitle">Persistent Data in an Ephemeral World</div>
+    <div style="width:60px; height:3px; background:var(--amber); margin-bottom:1.4em;"></div>
+    <div style="display:flex; gap:1.2em; flex-wrap:wrap; margin-bottom:1em;">
+      <span class="pill amber">Volumes</span>
+      <span class="pill green">Storage</span>
+      <span class="pill purple">Persistence</span>
+      <span class="pill blue">DevOps</span>
+    </div>
+    <div class="ss-row" style="margin-top:0.6em;">
+      <span class="ss-node active">Container</span>
+      <span class="ss-arrow">&rarr;</span>
+      <span class="ss-node active">Volume</span>
+      <span class="ss-arrow">&rarr;</span>
+      <span class="ss-node active">Mount</span>
+      <span class="ss-arrow">&rarr;</span>
+      <span class="ss-node done">Persist</span>
+      <span class="ss-arrow">&rarr;</span>
+      <span class="ss-node done">Backup</span>
+    </div>
+    <p style="max-width:620px; color:#a0a0c0; font-size:.56em; line-height:1.5; margin-top:1em;">
+      Understanding how Docker manages data &mdash; from ephemeral container layers to production-grade persistent storage strategies
+    </p>
+    <div class="meta" style="margin-top:1.4em;">
+      Volumes &nbsp;&middot;&nbsp; Bind Mounts &nbsp;&middot;&nbsp; tmpfs &nbsp;&middot;&nbsp; Drivers
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 02 — TOPICS ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">01</span>
+    <h2>Topics</h2>
+  </div>
+  <div class="cols cols-2">
+    <div>
+      <div class="card amber">
+        <h3 class="a">Storage Fundamentals</h3>
+        <ul>
+          <li>The container filesystem</li>
+          <li>Union filesystems &amp; layers</li>
+          <li>Named vs anonymous volumes</li>
+          <li>Bind mounts</li>
+        </ul>
+      </div>
+      <div class="card green" style="margin-top:0.5em;">
+        <h3 class="g">Mount Types &amp; Commands</h3>
+        <ul>
+          <li>tmpfs mounts</li>
+          <li>Volume drivers &amp; plugins</li>
+          <li>Docker volume commands cheat sheet</li>
+          <li>Sharing data between containers</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">Compose &amp; Operations</h3>
+        <ul>
+          <li>Volumes in Docker Compose</li>
+          <li>Backup &amp; restore strategies</li>
+          <li>Storage drivers (overlay2, btrfs)</li>
+          <li>Performance considerations</li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.5em;">
+        <h3 class="b">Production Patterns</h3>
+        <ul>
+          <li>Database containers &amp; persistence</li>
+          <li>Production storage patterns</li>
+          <li>Security considerations</li>
+          <li>Summary &amp; further reading</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 03 — CONTAINER FILESYSTEM ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">02</span>
+    <h2>The Container Filesystem</h2>
+  </div>
+  <p>Containers use a <span class="a">layered, copy-on-write</span> filesystem. Each image layer is read-only; the running container adds a thin writable layer on top.</p>
+  <div class="cols cols-6040">
+    <div>
+      <div class="card amber">
+        <h3 class="a">How Layers Work</h3>
+        <ul>
+          <li>Each Dockerfile instruction creates a new layer</li>
+          <li>Layers are <strong>read-only</strong> and shared between containers</li>
+          <li>A thin <strong>writable layer</strong> is added when the container starts</li>
+          <li>Writes use copy-on-write &mdash; modified files are copied up</li>
+          <li>When the container is removed, the writable layer is <span class="r">deleted</span></li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card red">
+        <h3 class="r">The Ephemeral Problem</h3>
+        <ul>
+          <li>Container data is <strong>temporary by default</strong></li>
+          <li><code>docker rm</code> destroys all written data</li>
+          <li>No way to share data between containers</li>
+          <li>Writable layer is tightly coupled to the host</li>
+          <li>Performance penalty from copy-on-write</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <pre><code class="text">┌─────────────────────────────────────┐
+│   Writable Container Layer (R/W)    │  ← Deleted on container removal
+├─────────────────────────────────────┤
+│   Layer 4: CMD / EXPOSE             │  ← Read-only
+├─────────────────────────────────────┤
+│   Layer 3: COPY app source          │  ← Read-only
+├─────────────────────────────────────┤
+│   Layer 2: RUN npm install          │  ← Read-only
+├─────────────────────────────────────┤
+│   Layer 1: FROM node:20-alpine      │  ← Read-only (base image)
+└─────────────────────────────────────┘</code></pre>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 04 — UNION FILESYSTEMS ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">03</span>
+    <h2>Union Filesystems &amp; Copy-on-Write</h2>
+  </div>
+  <p>Docker uses a <span class="a">union filesystem</span> (UnionFS) to merge multiple read-only layers into a single coherent view. The default on modern Linux is <span class="g">OverlayFS</span>.</p>
+  <div class="cols cols-2">
+    <div>
+      <div class="card green">
+        <h3 class="g">OverlayFS Mechanics</h3>
+        <ul>
+          <li><strong>lowerdir</strong> &mdash; stacked read-only image layers</li>
+          <li><strong>upperdir</strong> &mdash; writable container layer</li>
+          <li><strong>merged</strong> &mdash; unified view presented to the container</li>
+          <li><strong>workdir</strong> &mdash; internal scratch space for atomic operations</li>
+        </ul>
+      </div>
+      <div class="card purple" style="margin-top:0.5em;">
+        <h3 class="p">Copy-on-Write (CoW)</h3>
+        <ul>
+          <li>First write to a file copies it from lowerdir to upperdir</li>
+          <li>Subsequent reads/writes use the upperdir copy</li>
+          <li>Deletions create a <em>whiteout</em> file in the upperdir</li>
+          <li>Efficient for many containers sharing the same base image</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <pre><code class="bash"># Inspect the storage driver in use
+docker info | grep "Storage Driver"
+# Storage Driver: overlay2
+
+# See the layers of an image
+docker inspect node:20-alpine \
+  --format='{{.GraphDriver.Data}}'
+
+# View overlay mount for a running container
+docker inspect myapp \
+  --format='{{.GraphDriver.Data.MergedDir}}'
+
+# Check disk usage by layer
+docker system df -v</code></pre>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 05 — MOUNT TYPES OVERVIEW ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">04</span>
+    <h2>Docker Storage Mount Types</h2>
+  </div>
+  <p>Docker provides <span class="a">three mount types</span> to persist data beyond the container lifecycle. Each serves a different purpose.</p>
+  <div class="cols cols-3">
+    <div class="card amber">
+      <h3 class="a">Volumes</h3>
+      <ul>
+        <li>Managed by Docker</li>
+        <li>Stored in <code>/var/lib/docker/volumes/</code></li>
+        <li>Best for persistent application data</li>
+        <li>Survive container removal</li>
+        <li>Can use remote drivers (NFS, cloud)</li>
+        <li>Works on Linux, Mac, Windows</li>
+      </ul>
+    </div>
+    <div class="card green">
+      <h3 class="g">Bind Mounts</h3>
+      <ul>
+        <li>Map any host path into container</li>
+        <li>Full control over host location</li>
+        <li>Great for dev (hot reload)</li>
+        <li>Host changes visible instantly</li>
+        <li>Can be read-only (<code>:ro</code>)</li>
+        <li>Dependent on host file structure</li>
+      </ul>
+    </div>
+    <div class="card purple">
+      <h3 class="p">tmpfs Mounts</h3>
+      <ul>
+        <li>Stored in host memory only</li>
+        <li>Never written to disk</li>
+        <li>Good for secrets, temp data</li>
+        <li>Lost when container stops</li>
+        <li>Linux only</li>
+        <li>Configurable size limits</li>
+      </ul>
+    </div>
+  </div>
+  <pre><code class="text">    Host Filesystem                     Docker Area                  Memory
+   ┌──────────────┐              ┌──────────────────────┐       ┌──────────┐
+   │  /home/user/ │──bind mount──│ /var/lib/docker/     │       │  tmpfs   │
+   │  /data/app/  │              │   volumes/mydata/_data│      │  (RAM)   │
+   └──────────────┘              └──────────────────────┘       └──────────┘
+         ↕                               ↕                          ↕
+   ┌─────────────────────────────────────────────────────────────────────┐
+   │                     Container Filesystem                           │
+   └─────────────────────────────────────────────────────────────────────┘</code></pre>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 06 — NAMED VS ANONYMOUS VOLUMES ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">05</span>
+    <h2>Named Volumes vs Anonymous Volumes</h2>
+  </div>
+  <div class="cols cols-2">
+    <div>
+      <div class="card amber">
+        <h3 class="a">Named Volumes</h3>
+        <ul>
+          <li>Explicit, user-defined name</li>
+          <li>Easy to reference and manage</li>
+          <li>Persist independently of containers</li>
+          <li>Can be shared between containers</li>
+          <li><strong>Recommended</strong> for production use</li>
+        </ul>
+        <pre><code class="bash"># Create a named volume
+docker volume create pgdata
+
+# Use it with a container
+docker run -d \
+  -v pgdata:/var/lib/postgresql/data \
+  --name db postgres:16
+
+# Same volume, new container
+docker run -d \
+  -v pgdata:/var/lib/postgresql/data \
+  --name db2 postgres:16</code></pre>
+      </div>
+    </div>
+    <div>
+      <div class="card red">
+        <h3 class="r">Anonymous Volumes</h3>
+        <ul>
+          <li>Auto-generated hash name</li>
+          <li>Hard to identify and manage</li>
+          <li>Created by <code>VOLUME</code> in Dockerfile or <code>-v /path</code></li>
+          <li>Accumulate as orphans over time</li>
+          <li><strong>Avoid</strong> in production &mdash; use named volumes instead</li>
+        </ul>
+        <pre><code class="bash"># Creates an anonymous volume
+docker run -d \
+  -v /var/lib/postgresql/data \
+  postgres:16
+
+# List volumes — spot the anonymous ones
+docker volume ls
+# DRIVER    VOLUME NAME
+# local     pgdata          ← named
+# local     a1b2c3d4e5f6... ← anonymous
+
+# Clean up dangling anonymous volumes
+docker volume prune</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 07 — BIND MOUNTS ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">06</span>
+    <h2>Bind Mounts</h2>
+  </div>
+  <p>Bind mounts map a <span class="a">specific host directory</span> into the container. Changes on either side are reflected instantly.</p>
+  <div class="cols cols-2">
+    <div>
+      <div class="card green">
+        <h3 class="g">Development Use Cases</h3>
+        <ul>
+          <li>Hot-reload source code without rebuilding</li>
+          <li>Share config files from host</li>
+          <li>Access build output on host</li>
+          <li>Mount test fixtures</li>
+        </ul>
+      </div>
+      <div class="card red" style="margin-top:0.5em;">
+        <h3 class="r">Cautions</h3>
+        <ul>
+          <li>Container can modify host files</li>
+          <li>Path must exist on host (not auto-created)</li>
+          <li>Breaks portability (host-dependent paths)</li>
+          <li>Permission issues between host/container UIDs</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <pre><code class="bash"># Legacy -v syntax
+docker run -d \
+  -v $(pwd)/src:/app/src \
+  -v $(pwd)/config:/app/config:ro \
+  myapp:dev
+
+# Modern --mount syntax (recommended)
+docker run -d \
+  --mount type=bind,src=$(pwd)/src,dst=/app/src \
+  --mount type=bind,src=$(pwd)/config,dst=/app/config,readonly \
+  myapp:dev
+
+# Key difference: --mount errors if
+# source doesn't exist (safer)
+# -v silently creates an empty directory</code></pre>
+      <div class="card blue" style="margin-top:0.5em;">
+        <h3 class="b">Read-Only Bind Mounts</h3>
+        <p>Add <code>:ro</code> or <code>readonly</code> to prevent the container from modifying host files. Essential for config and secrets.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 08 — TMPFS MOUNTS ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">07</span>
+    <h2>tmpfs Mounts</h2>
+  </div>
+  <p>tmpfs mounts store data in <span class="a">host memory only</span>. Data is never written to the host filesystem and is lost when the container stops.</p>
+  <div class="cols cols-2">
+    <div>
+      <div class="card purple">
+        <h3 class="p">When to Use tmpfs</h3>
+        <ul>
+          <li><strong>Secrets &amp; credentials</strong> &mdash; never touch disk</li>
+          <li><strong>Session state</strong> &mdash; ephemeral by nature</li>
+          <li><strong>Scratch/temp files</strong> &mdash; faster than disk I/O</li>
+          <li><strong>Build caches</strong> &mdash; no need to persist</li>
+          <li><strong>Security-sensitive data</strong> &mdash; no forensic trace on disk</li>
+        </ul>
+      </div>
+      <div class="card amber" style="margin-top:0.5em;">
+        <h3 class="a">Limitations</h3>
+        <ul>
+          <li>Linux hosts only (not on Docker Desktop for Mac/Windows)</li>
+          <li>Cannot be shared between containers</li>
+          <li>Consumes host RAM &mdash; set size limits</li>
+          <li>Data lost on container stop (not just removal)</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <pre><code class="bash"># Using --tmpfs flag
+docker run -d \
+  --tmpfs /tmp:rw,size=64m \
+  --tmpfs /run/secrets:rw,size=1m \
+  myapp:1.0
+
+# Using --mount syntax (more options)
+docker run -d \
+  --mount type=tmpfs,dst=/tmp,tmpfs-size=67108864 \
+  --mount type=tmpfs,dst=/run/secrets,tmpfs-mode=0700 \
+  myapp:1.0
+
+# tmpfs-size: bytes (64MB = 67108864)
+# tmpfs-mode: file permissions (octal)</code></pre>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 09 — VOLUME DRIVERS ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">08</span>
+    <h2>Volume Drivers &amp; Plugins</h2>
+  </div>
+  <p>Docker volumes use the <span class="a">local driver</span> by default, but plugins enable storage on <span class="g">remote</span> and <span class="p">cloud</span> backends.</p>
+  <table>
+    <thead>
+      <tr><th>Driver / Plugin</th><th>Backend</th><th>Use Case</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>local</code></td><td>Host filesystem</td><td>Default; single-host workloads</td></tr>
+      <tr><td><code>local</code> + NFS opts</td><td>NFS share</td><td>Shared storage across hosts</td></tr>
+      <tr><td><code>rexray/ebs</code></td><td>AWS EBS</td><td>Persistent block storage on AWS</td></tr>
+      <tr><td><code>rexray/efs</code></td><td>AWS EFS</td><td>Shared file storage on AWS</td></tr>
+      <tr><td><code>azure_file</code></td><td>Azure Files</td><td>Shared storage on Azure</td></tr>
+      <tr><td><code>vieux/sshfs</code></td><td>SSH/SFTP</td><td>Mount remote dir via SSH</td></tr>
+      <tr><td><code>netapp/trident</code></td><td>NetApp</td><td>Enterprise SAN/NAS</td></tr>
+    </tbody>
+  </table>
+  <div class="cols cols-2" style="margin-top:0.3em;">
+    <div>
+      <pre><code class="bash"># Create NFS-backed volume
+docker volume create \
+  --driver local \
+  --opt type=nfs \
+  --opt o=addr=192.168.1.100,rw \
+  --opt device=:/exports/data \
+  nfs_data</code></pre>
+    </div>
+    <div>
+      <pre><code class="bash"># Install and use a plugin
+docker plugin install \
+  vieux/sshfs
+
+docker volume create \
+  --driver vieux/sshfs \
+  -o sshcmd=user@host:/remote/path \
+  -o password=secret \
+  sshvol</code></pre>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 10 — VOLUME COMMANDS ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">09</span>
+    <h2>Docker Volume Commands Cheat Sheet</h2>
+  </div>
+  <table>
+    <thead>
+      <tr><th>Command</th><th>Description</th><th>Example</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>docker volume create</code></td><td>Create a named volume</td><td><code>docker volume create mydata</code></td></tr>
+      <tr><td><code>docker volume ls</code></td><td>List all volumes</td><td><code>docker volume ls --filter dangling=true</code></td></tr>
+      <tr><td><code>docker volume inspect</code></td><td>Show volume details</td><td><code>docker volume inspect mydata</code></td></tr>
+      <tr><td><code>docker volume rm</code></td><td>Remove a volume</td><td><code>docker volume rm mydata</code></td></tr>
+      <tr><td><code>docker volume prune</code></td><td>Remove all unused volumes</td><td><code>docker volume prune -f</code></td></tr>
+      <tr><td><code>docker run -v</code></td><td>Mount volume (legacy syntax)</td><td><code>docker run -v mydata:/app/data img</code></td></tr>
+      <tr><td><code>docker run --mount</code></td><td>Mount volume (modern syntax)</td><td><code>docker run --mount src=mydata,dst=/data img</code></td></tr>
+    </tbody>
+  </table>
+  <div class="cols cols-2" style="margin-top:0.3em;">
+    <div class="card green">
+      <h3 class="g">-v vs --mount Syntax</h3>
+      <p><code>-v name:/path</code> &mdash; concise, auto-creates volumes<br>
+      <code>--mount type=volume,src=name,dst=/path</code> &mdash; explicit, errors on missing source. <strong>Prefer --mount</strong> for clarity.</p>
+    </div>
+    <div class="card amber">
+      <h3 class="a">Inspect Output</h3>
+      <pre><code class="json">{
+  "Name": "pgdata",
+  "Driver": "local",
+  "Mountpoint": "/var/lib/docker/volumes/pgdata/_data",
+  "Scope": "local"
+}</code></pre>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 11 — SHARING DATA ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">10</span>
+    <h2>Sharing Data Between Containers</h2>
+  </div>
+  <p>Named volumes can be mounted by <span class="a">multiple containers simultaneously</span>, enabling shared storage and data pipelines.</p>
+  <div class="cols cols-2">
+    <div>
+      <div class="card amber">
+        <h3 class="a">Pattern: Shared Volume</h3>
+        <pre><code class="bash"># Create a shared volume
+docker volume create shared_data
+
+# Writer container
+docker run -d --name writer \
+  -v shared_data:/data \
+  alpine sh -c \
+  'while true; do date >> /data/log.txt; sleep 5; done'
+
+# Reader container
+docker run -d --name reader \
+  -v shared_data:/data:ro \
+  alpine tail -f /data/log.txt</code></pre>
+      </div>
+    </div>
+    <div>
+      <div class="card green">
+        <h3 class="g">Pattern: Sidecar / Init Container</h3>
+        <pre><code class="bash"># Init: populate config from git
+docker run --rm \
+  -v app_config:/config \
+  alpine/git clone \
+  https://github.com/org/config.git /config
+
+# App: use the config
+docker run -d \
+  -v app_config:/app/config:ro \
+  myapp:latest</code></pre>
+      </div>
+      <div class="card red" style="margin-top:0.5em;">
+        <h3 class="r">Concurrency Warning</h3>
+        <p>Multiple writers to the same volume can cause <strong>data corruption</strong>. Use application-level locking or a database for concurrent access.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 12 — COMPOSE VOLUMES ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">11</span>
+    <h2>Volumes in Docker Compose</h2>
+  </div>
+  <div class="cols cols-6040">
+    <div>
+      <pre><code class="yaml"># docker-compose.yml
+services:
+  app:
+    build: .
+    ports: ["3000:3000"]
+    volumes:
+      - ./src:/app/src           # bind mount (dev)
+      - app_uploads:/app/uploads # named volume
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 5s
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+volumes:
+  pgdata:                 # default local driver
+  redis_data:
+    driver: local
+  app_uploads:
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/uploads</code></pre>
+    </div>
+    <div>
+      <div class="card amber">
+        <h3 class="a">Top-Level <code>volumes:</code> Key</h3>
+        <ul>
+          <li>Declares named volumes for the project</li>
+          <li>Compose prefixes with project name: <code>myapp_pgdata</code></li>
+          <li>Supports driver, driver_opts, external, labels</li>
+        </ul>
+      </div>
+      <div class="card green" style="margin-top:0.5em;">
+        <h3 class="g">External Volumes</h3>
+        <pre><code class="yaml">volumes:
+  pgdata:
+    external: true  # must pre-exist
+    name: production_pgdata</code></pre>
+        <p>Use <code>external: true</code> to reference volumes managed outside Compose.</p>
+      </div>
+      <div class="card purple" style="margin-top:0.5em;">
+        <h3 class="p">Lifecycle</h3>
+        <ul>
+          <li><code>docker compose down</code> &mdash; keeps volumes</li>
+          <li><code>docker compose down -v</code> &mdash; <span class="r">destroys volumes</span></li>
+          <li>Always be cautious with <code>-v</code> flag in production</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 13 — BACKUP & RESTORE ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">12</span>
+    <h2>Backup &amp; Restore Strategies</h2>
+  </div>
+  <div class="cols cols-2">
+    <div>
+      <div class="card amber">
+        <h3 class="a">Volume Backup with tar</h3>
+        <pre><code class="bash"># Backup: mount volume into temp container
+docker run --rm \
+  -v pgdata:/source:ro \
+  -v $(pwd):/backup \
+  alpine tar czf /backup/pgdata-backup.tar.gz \
+    -C /source .
+
+# Restore: extract into volume
+docker run --rm \
+  -v pgdata:/target \
+  -v $(pwd):/backup \
+  alpine tar xzf /backup/pgdata-backup.tar.gz \
+    -C /target</code></pre>
+      </div>
+      <div class="card green" style="margin-top:0.5em;">
+        <h3 class="g">Database-Native Backup</h3>
+        <pre><code class="bash"># PostgreSQL — pg_dump
+docker exec db \
+  pg_dump -U postgres mydb \
+  > backup.sql
+
+# MySQL — mysqldump
+docker exec mysql \
+  mysqldump -u root -p mydb \
+  > backup.sql
+
+# Restore
+cat backup.sql | docker exec -i db \
+  psql -U postgres mydb</code></pre>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">Automated Backup Script</h3>
+        <pre><code class="bash">#!/bin/bash
+# backup-volumes.sh
+DATE=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR=/backups
+
+for vol in pgdata redis_data uploads; do
+  docker run --rm \
+    -v ${vol}:/source:ro \
+    -v ${BACKUP_DIR}:/backup \
+    alpine tar czf \
+      /backup/${vol}_${DATE}.tar.gz \
+      -C /source .
+done
+
+# Retention: keep last 7 days
+find ${BACKUP_DIR} -name "*.tar.gz" \
+  -mtime +7 -delete</code></pre>
+      </div>
+      <div class="card blue" style="margin-top:0.5em;">
+        <h3 class="b">Cloud Backup</h3>
+        <ul>
+          <li>Pipe tar output to <code>aws s3 cp</code> or <code>gsutil cp</code></li>
+          <li>Use volume snapshots on cloud providers (EBS snapshots)</li>
+          <li>Schedule with cron or container-based scheduler</li>
+          <li>Always test your restore process</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 14 — STORAGE DRIVERS ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">13</span>
+    <h2>Storage Drivers</h2>
+  </div>
+  <p>Storage drivers control how <span class="a">image layers and the writable container layer</span> are stored on disk. This is different from volume drivers.</p>
+  <table>
+    <thead>
+      <tr><th>Driver</th><th>Backing Filesystem</th><th>Status</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><span class="a">overlay2</span></td><td>xfs, ext4</td><td>Default &amp; recommended</td><td>Best all-round performance; uses kernel OverlayFS</td></tr>
+      <tr><td><span class="g">btrfs</span></td><td>btrfs</td><td>Supported</td><td>Native snapshots; good for many builds</td></tr>
+      <tr><td><span class="p">zfs</span></td><td>zfs</td><td>Supported</td><td>Snapshots, compression, dedup; resource-heavy</td></tr>
+      <tr><td><span class="b">devicemapper</span></td><td>direct-lvm</td><td>Deprecated</td><td>Was default on CentOS/RHEL; avoid for new installs</td></tr>
+      <tr><td>vfs</td><td>Any</td><td>Testing only</td><td>No CoW; full copy per layer. Very slow, very large</td></tr>
+    </tbody>
+  </table>
+  <div class="cols cols-2" style="margin-top:0.3em;">
+    <div class="card green">
+      <h3 class="g">Check / Configure</h3>
+      <pre><code class="bash"># Check current driver
+docker info | grep -i storage
+
+# Set in /etc/docker/daemon.json
+{
+  "storage-driver": "overlay2"
+}</code></pre>
+    </div>
+    <div class="card amber">
+      <h3 class="a">Recommendation</h3>
+      <p>Use <span class="a">overlay2</span> unless you have a specific reason not to. It is the default on all major Linux distributions and offers the best balance of performance and stability.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 15 — PERFORMANCE ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">14</span>
+    <h2>Performance Considerations</h2>
+  </div>
+  <div class="cols cols-2">
+    <div>
+      <div class="card amber">
+        <h3 class="a">I/O Performance Ranking</h3>
+        <table>
+          <thead><tr><th>Mount Type</th><th>Read</th><th>Write</th><th>Best For</th></tr></thead>
+          <tbody>
+            <tr><td>tmpfs</td><td>Fastest</td><td>Fastest</td><td>Temp/scratch data</td></tr>
+            <tr><td>Bind mount</td><td>Native</td><td>Native</td><td>Dev, host data</td></tr>
+            <tr><td>Named volume</td><td>Near-native</td><td>Near-native</td><td>Databases, state</td></tr>
+            <tr><td>Container layer</td><td>Slower</td><td>Slowest</td><td>Avoid for data</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card red" style="margin-top:0.5em;">
+        <h3 class="r">Docker Desktop (Mac/Windows)</h3>
+        <ul>
+          <li>Bind mounts are <strong>much slower</strong> due to VM file sharing</li>
+          <li>Use <code>:cached</code> or <code>:delegated</code> consistency modes</li>
+          <li>VirtioFS (default on newer versions) is faster than gRPC-FUSE</li>
+          <li>Named volumes bypass the VM sharing &mdash; prefer for <code>node_modules</code></li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card green">
+        <h3 class="g">Optimization Tips</h3>
+        <ul>
+          <li>Write-heavy apps: use named volumes, not the container layer</li>
+          <li>Avoid storing large datasets in the writable layer</li>
+          <li>Use <code>--mount type=tmpfs</code> for temp/scratch data</li>
+          <li>On Mac: keep <code>node_modules</code> in a named volume</li>
+          <li>Use <code>.dockerignore</code> to reduce build context</li>
+          <li>Match filesystem (xfs with <code>d_type=true</code> for overlay2)</li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.5em;">
+        <h3 class="b">Benchmarking</h3>
+        <pre><code class="bash"># Test write performance
+docker run --rm -v mydata:/data alpine \
+  dd if=/dev/zero of=/data/test \
+  bs=1M count=1024 oflag=direct
+
+# Compare with container layer
+docker run --rm alpine \
+  dd if=/dev/zero of=/tmp/test \
+  bs=1M count=1024 oflag=direct</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 16 — DATABASE PERSISTENCE ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">15</span>
+    <h2>Database Containers &amp; Persistence</h2>
+  </div>
+  <p>Running databases in Docker is common, but <span class="r">losing data is the #1 beginner mistake</span>. Always use named volumes.</p>
+  <div class="cols cols-2">
+    <div>
+      <div class="card amber">
+        <h3 class="a">PostgreSQL</h3>
+        <pre><code class="yaml">services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: myapp
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+    secrets:
+      - db_pass
+
+volumes:
+  pgdata:</code></pre>
+      </div>
+      <div class="card green" style="margin-top:0.5em;">
+        <h3 class="g">MySQL / MariaDB</h3>
+        <pre><code class="bash">docker run -d --name mysql \
+  -e MYSQL_ROOT_PASSWORD=secret \
+  -v mysql_data:/var/lib/mysql \
+  mysql:8</code></pre>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">MongoDB</h3>
+        <pre><code class="bash">docker run -d --name mongo \
+  -v mongo_data:/data/db \
+  -v mongo_config:/data/configdb \
+  mongo:7</code></pre>
+      </div>
+      <div class="card blue" style="margin-top:0.5em;">
+        <h3 class="b">Redis (Persistent)</h3>
+        <pre><code class="bash">docker run -d --name redis \
+  -v redis_data:/data \
+  redis:7-alpine \
+  redis-server --appendonly yes</code></pre>
+      </div>
+      <div class="card red" style="margin-top:0.5em;">
+        <h3 class="r">Critical Rules</h3>
+        <ul>
+          <li><strong>Always</strong> use named volumes for DB data dirs</li>
+          <li><strong>Never</strong> use <code>docker compose down -v</code> carelessly</li>
+          <li>Test backup &amp; restore <strong>before</strong> you need it</li>
+          <li>In production, consider managed databases instead</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 17 — PRODUCTION PATTERNS ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">16</span>
+    <h2>Production Storage Patterns</h2>
+  </div>
+  <div class="cols cols-2">
+    <div>
+      <div class="card amber">
+        <h3 class="a">Pattern: Named Volumes + Backups</h3>
+        <ul>
+          <li>Named volumes for all persistent data</li>
+          <li>Automated daily backups to S3/GCS</li>
+          <li>Tested restore runbook</li>
+          <li>Volume labels for management</li>
+        </ul>
+        <pre><code class="bash">docker volume create \
+  --label env=production \
+  --label service=api \
+  api_uploads</code></pre>
+      </div>
+      <div class="card green" style="margin-top:0.5em;">
+        <h3 class="g">Pattern: NFS for Shared Storage</h3>
+        <ul>
+          <li>Multiple containers across hosts sharing data</li>
+          <li>NFS volume driver for cross-host access</li>
+          <li>Suitable for static assets, uploads, shared config</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">Pattern: Cloud Block Storage</h3>
+        <ul>
+          <li>AWS EBS / GCP Persistent Disk / Azure Disk</li>
+          <li>Snapshot-based backups</li>
+          <li>IOPS provisioning for databases</li>
+          <li>Tied to availability zone &mdash; plan for failover</li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.5em;">
+        <h3 class="b">Pattern: Object Storage for Assets</h3>
+        <ul>
+          <li>S3 / GCS / Azure Blob for user uploads, media</li>
+          <li>Don't store large files in volumes &mdash; use object storage</li>
+          <li>CDN integration for serving static assets</li>
+          <li>Infinite scale, built-in redundancy</li>
+        </ul>
+      </div>
+      <div class="card red" style="margin-top:0.5em;">
+        <h3 class="r">Anti-Pattern: Data in Container Layer</h3>
+        <p>Never store important data without a volume. One <code>docker rm</code> and it's gone forever.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 18 — SECURITY ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">17</span>
+    <h2>Volume Security Considerations</h2>
+  </div>
+  <div class="cols cols-2">
+    <div>
+      <div class="card red">
+        <h3 class="r">Common Security Risks</h3>
+        <ul>
+          <li>Bind-mounting <code>/</code> or <code>/etc</code> gives container full host access</li>
+          <li>Mounting Docker socket (<code>/var/run/docker.sock</code>) = root on host</li>
+          <li>Sensitive data persisted in volumes without encryption</li>
+          <li>World-readable volume permissions</li>
+          <li>Orphaned volumes containing secrets</li>
+        </ul>
+      </div>
+      <div class="card amber" style="margin-top:0.5em;">
+        <h3 class="a">Best Practices</h3>
+        <ul>
+          <li>Use <strong>read-only</strong> bind mounts where possible</li>
+          <li>Run containers as non-root user</li>
+          <li>Use Docker secrets or tmpfs for credentials</li>
+          <li>Set <code>read_only: true</code> on the container root filesystem</li>
+          <li>Regularly prune unused volumes</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card green">
+        <h3 class="g">Read-Only Root Filesystem</h3>
+        <pre><code class="bash"># Immutable container with targeted writable mounts
+docker run -d \
+  --read-only \
+  --tmpfs /tmp:rw,size=64m \
+  --tmpfs /run:rw,size=8m \
+  -v app_data:/app/data \
+  myapp:latest</code></pre>
+      </div>
+      <div class="card purple" style="margin-top:0.5em;">
+        <h3 class="p">Docker Secrets (Swarm)</h3>
+        <pre><code class="bash"># Create a secret
+echo "s3cr3t" | docker secret create db_pass -
+
+# Use in service (mounted at /run/secrets/)
+docker service create \
+  --secret db_pass \
+  --name db postgres:16</code></pre>
+        <p>Secrets are stored encrypted at rest and mounted as tmpfs in the container.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 19 — SUMMARY ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">18</span>
+    <h2>Summary &amp; Further Reading</h2>
+  </div>
+  <div class="cols cols-2">
+    <div>
+      <div class="card amber">
+        <h3 class="a">Key Takeaways</h3>
+        <ul>
+          <li>Container data is <strong>ephemeral</strong> &mdash; volumes make it persist</li>
+          <li><strong>Named volumes</strong> for production; bind mounts for dev</li>
+          <li><strong>tmpfs</strong> for secrets and scratch data</li>
+          <li>Always use volumes for <strong>database containers</strong></li>
+          <li>Backup your volumes &mdash; and <strong>test your restores</strong></li>
+          <li><strong>overlay2</strong> is the recommended storage driver</li>
+          <li>Use <code>--mount</code> over <code>-v</code> for clarity</li>
+          <li>Never store critical data in the container layer</li>
+        </ul>
+      </div>
+      <div class="card green" style="margin-top:0.5em;">
+        <h3 class="g">Decision Quick Reference</h3>
+        <table>
+          <thead><tr><th>Scenario</th><th>Use</th></tr></thead>
+          <tbody>
+            <tr><td>Database data</td><td>Named volume</td></tr>
+            <tr><td>Source code (dev)</td><td>Bind mount</td></tr>
+            <tr><td>Secrets</td><td>tmpfs / Docker secrets</td></tr>
+            <tr><td>Shared config</td><td>Read-only bind mount</td></tr>
+            <tr><td>Cross-host sharing</td><td>NFS volume driver</td></tr>
+            <tr><td>Large file uploads</td><td>Object storage (S3)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">Further Reading</h3>
+        <ul>
+          <li><strong>Docker Docs</strong> &mdash; docs.docker.com/storage/</li>
+          <li><strong>Volumes</strong> &mdash; docs.docker.com/storage/volumes/</li>
+          <li><strong>Bind Mounts</strong> &mdash; docs.docker.com/storage/bind-mounts/</li>
+          <li><strong>Storage Drivers</strong> &mdash; docs.docker.com/storage/storagedriver/</li>
+          <li><strong>"Docker Deep Dive"</strong> by Nigel Poulton</li>
+          <li><strong>"Kubernetes Patterns"</strong> by Ibryam &amp; Huss</li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.5em;">
+        <h3 class="b">Hands-On Practice</h3>
+        <ul>
+          <li>Run PostgreSQL with a named volume, insert data, recreate the container</li>
+          <li>Write a backup/restore script for a Docker volume</li>
+          <li>Set up a Compose project with bind mounts + named volumes</li>
+          <li>Benchmark volume vs container layer write performance</li>
+          <li>Configure NFS-backed volumes across two hosts</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+</div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css">
+<script>
+Reveal.initialize({ hash:true, slideNumber:'c/t', transition:'fade', transitionSpeed:'fast', controls:true, progress:true, center:false, width:1100, height:900, margin:0.01, plugins:[RevealHighlight], highlight:{theme:'monokai'} });
+</script>
+<script>
+(function(){ var h=Reveal.getConfig().height||900; var m=Reveal.getConfig().margin||0.02; var maxH=Math.floor(h*(1-2*m))+'px'; function fixSlides(){ document.querySelectorAll('.reveal .slides>section,.reveal .slides>section>section').forEach(function(s){ s.style.display='block'; s.style.maxHeight=maxH; }); } Reveal.on('ready',fixSlides); Reveal.on('slidechanged',fixSlides); })();
+</script>
+</body></html>
